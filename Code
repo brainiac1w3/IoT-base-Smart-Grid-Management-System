@@ -1,0 +1,248 @@
+
+#define BLYNK_TEMPLATE_ID "TMPLhMKQW-Vm"
+#define BLYNK_DEVICE_NAME "Quickstart Template"
+#define BLYNK_AUTH_TOKEN "EvOP11uD9aKMTxeqcMwtcVs3u3gwSMl2"
+#define BLYNK_PRINT Serial
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+
+#include <Wire.h>
+#include <Adafruit_INA219.h>
+#include "Adafruit_GFX.h"
+#include <Arduino.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_PCD8544.h>
+
+char auth[] = BLYNK_AUTH_TOKEN;
+char ssid[] = "New Beginnings";
+char pass[] = "#tat@2022#";
+
+Adafruit_INA219 ina2190(0x40);
+Adafruit_INA219 ina2191(0x41);
+Adafruit_INA219 ina2192(0x45);
+
+Adafruit_PCD8544 display = Adafruit_PCD8544(18,23,4,15,2);
+
+BlynkTimer timer;
+
+unsigned long time_passed;
+
+float tolerance = 0;
+float difference = 0;
+float house1_bill = 0;
+float house2_bill =0;
+float house1_power = 0;
+float house2_power = 0;
+float grid_production = 0;
+
+
+#define relay1_pin 26
+#define relay2_pin 25
+
+int relay1_state = 0;
+int relay2_state = 0;
+
+
+#define button1_vpin    V1
+#define button2_vpin    V2
+#define button3_vpin    V3 
+#define button4_vpin    V4
+#define button5_vpin    V5
+#define button6_vpin    V6
+#define button7_vpin    V7
+#define button8_vpin    V8
+
+
+BLYNK_CONNECTED() {
+  Blynk.syncVirtual(button1_vpin);
+  Blynk.syncVirtual(button2_vpin);
+  Blynk.syncVirtual(button3_vpin);
+  Blynk.syncVirtual(button4_vpin);
+  Blynk.syncVirtual(button5_vpin);
+  Blynk.syncVirtual(button6_vpin);
+  Blynk.syncVirtual(button7_vpin);
+  Blynk.syncVirtual(button8_vpin);
+}
+
+BLYNK_WRITE(button1_vpin) {
+  relay1_state = param.asInt();
+  digitalWrite(relay1_pin, relay1_state);
+}
+
+BLYNK_WRITE(button5_vpin) {
+  relay2_state = param.asInt();
+  digitalWrite(relay2_pin, relay2_state);
+}
+
+void setup(void) 
+{
+  Serial.begin(115200);
+  while (!Serial) {
+      // will pause Zero, Leonardo, etc until serial console opens
+      delay(1);
+  }
+
+  pinMode(relay1_pin, OUTPUT);
+  pinMode(relay2_pin, OUTPUT);
+
+  digitalWrite(relay1_pin, HIGH);
+  digitalWrite(relay2_pin, HIGH);
+  
+  time_passed = millis();
+  
+  ina2190.begin();
+  ina2191.begin();
+  ina2192.begin();
+  
+  display.begin();
+  display.setContrast(55);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(BLACK);
+  
+  Blynk.begin(auth, ssid, pass);
+  
+}
+  static float shuntvoltage1 = 0;
+  static float busvoltage1 = 0;
+  static float current_mA1 = 0;
+  static float loadvoltage1 = 0;
+  static float power_mW1 = 0;
+
+  static float shuntvoltage2 = 0;
+  static float busvoltage2 = 0;
+  static float current_mA2 = 0;
+  static float loadvoltage2 = 0;
+  static float power_mW2 = 0;
+
+  static float shuntvoltage3 = 0;
+  static float busvoltage3 = 0;
+  static float current_mA3 = 0;
+  static float loadvoltage3 = 0;
+  static float power_mW3 = 0;
+
+  
+void loop(void) 
+{
+  Blynk.run();
+  
+  current_mA1 = ina2190.getCurrent_mA();
+  power_mW1 = ina2190.getPower_mW();
+  
+  current_mA2 = ina2191.getCurrent_mA();
+  power_mW2 = ina2191.getPower_mW();
+    
+  current_mA3 = ina2192.getCurrent_mA();
+  power_mW3 = ina2192.getPower_mW();
+  
+  house1_bill = house1_bill + power_mW2*3;
+  house2_bill = house2_bill + power_mW3*3;
+
+  house1_power = house1_power + power_mW2;
+  house2_power = house2_power + power_mW3;
+  
+  grid_production = grid_production + power_mW1 ;
+
+  timer.run();
+  
+//  Serial.print("Current1:       "); Serial.print(current_mA1); Serial.println(" mA");
+//  Serial.print("Power1:         "); Serial.print(power_mW1); Serial.println(" mW");
+//  Serial.println("");
+//  
+//  Serial.print("Current2:       "); Serial.print(current_mA2); Serial.println(" mA");
+//  Serial.print("Power2:         "); Serial.print(power_mW2); Serial.println(" mW");
+//  Serial.println("");
+//      
+//  Serial.print("Current3:       "); Serial.print(current_mA3); Serial.println(" mA");
+//  Serial.print("Power3:         "); Serial.print(power_mW3); Serial.println(" mW");
+//  Serial.println("");
+//
+//  Serial.print("House 1 bill:       "); Serial.print(house1_bill); Serial.println(" Tk.");
+//  Serial.print("House 2 bill:         "); Serial.print(house2_bill); Serial.println(" Tk");
+//  Serial.println("");
+//
+//  Serial.print("Current3:       "); Serial.print(current_mA3); Serial.println(" mA");
+//  Serial.print("Power3:         "); Serial.print(power_mW3); Serial.println(" mW");
+//  Serial.println("");
+
+  if(millis()-time_passed > 25000) {
+     time_passed = millis(); 
+     house1_bill = 0; 
+     house2_bill = 0;
+     house1_power = 0;
+     house2_power = 0;
+     grid_production = 0;
+     
+   }
+
+
+  difference  = current_mA1 - current_mA2 - current_mA3;
+  tolerance = current_mA1*0.045; 
+  if (current_mA2<=0 && current_mA3<=0 && current_mA1>0.1)
+   {
+    Serial.print("THEFT!!!");
+    Blynk.virtualWrite(V2, "THEFT");
+    }
+   else if (current_mA2<=0 && current_mA3<=0 && current_mA1<0.1)
+   {
+    Serial.print("All OK");
+    Blynk.virtualWrite(V2, "ALL Ok");
+    }
+   else if(difference > tolerance)
+    {
+     Serial.print("THEFT!!!");
+     Blynk.virtualWrite(V2, "THEFT");
+      }
+    
+   else{
+    Serial.print("ALL OK");
+    Blynk.virtualWrite(V2, "ALL OK");
+    } 
+  
+  Blynk.virtualWrite(V3, house1_power);
+  Blynk.virtualWrite(V4, house2_power);
+  Blynk.virtualWrite(V6, house2_bill);
+  Blynk.virtualWrite(V7, house1_bill);
+  Blynk.virtualWrite(V8, grid_production);
+  
+ delay(1000);
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("House1 Power:");
+  display.setCursor(0,10);
+  display.println(house1_power);
+  display.setCursor(60,10);
+  display.println("mW");
+    
+  display.setCursor(0,25); 
+  display.println("House1 Bill:");
+  display.setCursor(0,35);
+  display.println(house1_bill);
+  display.setCursor(60,35);
+  display.println("Tk.");
+  display.display();
+  delay(1000);
+  
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("House2 Power:");
+  display.setCursor(0,10);
+  display.println(house2_power);
+  display.setCursor(60,10);
+  display.println("mW");
+    
+  display.setCursor(0,25); 
+  display.println("House2 Bill:");
+  display.setCursor(0,35);
+  display.println(house2_bill);
+  display.setCursor(60,35);
+  display.println("Tk.");
+  display.display();
+  delay(1000);
+  display.clearDisplay();
+}
+code.txt
+Displaying code.txt.
